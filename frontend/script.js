@@ -7,6 +7,7 @@ let fundButton = document.getElementById("fundButton");
 let ethAmountInput = document.getElementById("ethAmount");
 let inputEthValue = document.getElementById("ethAmount");
 let getBalance = document.getElementById("getBalance");
+let withdrawButton = document.getElementById("withdraw");
 
 let walletClient;
 let publicClient;
@@ -16,58 +17,55 @@ async function connect() {
     if(typeof window.ethereum !== "undefined") {
         walletClient = createWalletClient({
             transport: custom(window.ethereum)
-        });
+        })
 
-        const accounts = await walletClient.requestAddresses();
+        const account = await walletClient.requestAddresses();
 
         connectButton.innerHTML = "Connected";
-
-        console.log(accounts)
-    }
-    else {
-        connectButton.innerHTML = "Please install metamask";
+        console.log(account)
     }
 }
 
 async function fund() {
-    let ethValue = inputEthValue.value;
     try {
         const ethAmount = ethAmountInput.value;
         if(typeof window.ethereum !== "undefined") {
             walletClient = createWalletClient({
                 transport: custom(window.ethereum)
-            })
+            });
 
             const account = await walletClient.requestAddresses();
-            currentChain = await getCurrentChain(walletClient);
+
+            const currentChain = await getCurrentChain(walletClient);
 
             publicClient = createPublicClient({
                 transport: custom(window.ethereum)
-            })
+            });
 
             const {request} = await publicClient.simulateContract({
                 address: contractAddress,
                 abi,
+                account: account[0],
                 functionName: "fund",
+                value: parseEther(ethAmount),
                 chain: currentChain,
-                account: account,
-                value: parseEther(ethValue),
             })
 
             const hash = await walletClient.writeContract(request);
 
             console.log(hash);
+
         }
     } catch(error) {
-        console.log(error);
-}
+        console.log(error)
+    }
 }
 
 async function getCurrentChain(client) {
-    let chainId = await client.getChainId();
-    let currentChain = defineChain({
+    const chainId = await client.getChainId();
+    const currentChain = defineChain({
         id: chainId,
-        name: "Custom Chain Name",
+        name: "Custom Name",
         nativeCurrency: {
             name: "Ether",
             symbol: "ETH",
@@ -78,24 +76,53 @@ async function getCurrentChain(client) {
                 http: ["http://localhost:8545"],
             },
         },
-    })
+    });
 
     return currentChain;
 }
 
 async function getContractBalance() {
     if(typeof window.ethereum !== "undefined") {
-       publicClient = createPublicClient({
-        transport: custom(window.ethereum)
-       });
+        publicClient = createPublicClient({
+            transport: custom(window.ethereum),
+        });
 
-       const balance = await publicClient.getBalance({
-        address: contractAddress,
-       });
-       console.log(formatEther(balance));
+        const balance = await publicClient.getBalance({
+            address: contractAddress,
+        })
+
+        console.log(formatEther(balance));
+    }
+}
+
+async function withdraw() {
+    if(typeof window.ethereum !== "undefined") {
+        walletClient = createWalletClient({
+            transport: custom(window.ethereum),
+        });
+
+        const account = await walletClient.requestAddresses();
+        const currentChain = await getCurrentChain(walletClient);
+
+        publicClient = createPublicClient({
+            transport: custom(window.ethereum),
+        });
+
+        const {request} = await publicClient.simulateContract({
+            address: contractAddress, 
+            abi,
+            account: account[0],
+            finctionName: "withdraw",
+            chain: currentChain,
+        });
+
+        const hash = await walletClient.writeContract(request);
+
+        console.log(hash);
     }
 }
 
 connectButton.onclick = connect
 fundButton.onclick = fund
 getBalance.onclick = getContractBalance
+withdrawButton.onclick = withdraw
